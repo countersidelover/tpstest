@@ -2,16 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "Enemy.generated.h"
+#include "Boss2.generated.h"
 
 UCLASS()
-class TPSPROJECT_API AEnemy : public ACharacter
+class TPSPROJECT_API ABoss2 : public ACharacter
 {
     GENERATED_BODY()
 
 public:
     // Sets default values for this character's properties
-    AEnemy();
+    ABoss2();
 
 protected:
     // Called when the game starts or when spawned
@@ -26,5 +26,6 @@ public:
 
     // FSM component
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FSM")
-    class UEnemyFSM* fsm;
+    class UBoss2FSM* fsm;
 };
+

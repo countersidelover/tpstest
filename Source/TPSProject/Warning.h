@@ -1,31 +1,26 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Pillar.generated.h"
+#include "Warning.generated.h"
 
 UCLASS()
-class TPSPROJECT_API APillar : public AActor
+class TPSPROJECT_API AWarning : public AActor
 {
 	GENERATED_BODY()
-
-public:
+	
+public:	
 	// Sets default values for this actor's properties
-	APillar();
+	AWarning();
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:
+public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-private:
-	// Components
-	UPROPERTY(VisibleAnywhere)
-	UStaticMeshComponent* PillarMesh;
-
-	UPROPERTY(VisibleAnywhere)
-	class UBoxComponent* CollisionBox; // UBoxComponent를 포함해야 합니다.
 };

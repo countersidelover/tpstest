@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "EnemyFSM.generated.h"
+#include "Boss2FSM.generated.h"
 
 UENUM(BlueprintType)
-enum class EEnemyState : uint8
+enum class EBoss2State : uint8
 {
     Idle,
     Move,
@@ -13,19 +13,18 @@ enum class EEnemyState : uint8
     Damage,
     Die,
     Meteor,
-    WhiteSphere,
     Charge,
     Charging,
     Groggy
 };
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class TPSPROJECT_API UEnemyFSM : public UActorComponent
+class TPSPROJECT_API UBoss2FSM : public UActorComponent
 {
     GENERATED_BODY()
 
 public:
-    UEnemyFSM();
+    UBoss2FSM();
 
 protected:
     virtual void BeginPlay() override;
@@ -40,21 +39,19 @@ private:
     void DamageState();
     void DieState();
     void MeteorState();
-    void WhiteSphereState();
     void ChargeState(float newChargeSpeed);
-    void LaunchMeteors();
-    void LaunchWhiteSphere();
+    void LaunchElectricShocks();
     void ChargeWarning(float newChargeSpeed);
     bool IsCollidingWithPillar();
     void EnterGroggyState();
     void OnDamageProcess();
 
     UPROPERTY()
-    class AEnemy* me;
+    class ABoss2* me;
     UPROPERTY()
     class ATempMan* target;
     UPROPERTY()
-    class UEnemyAnim* anim;
+    class UBoss2Anim* anim;
     UPROPERTY()
     class UStaticMeshComponent* ChargingPathMesh;
 
@@ -80,10 +77,8 @@ private:
     bool bWhiteSphereExecuted = false;
     bool isExecutingPattern = false;
 
-    EEnemyState mState = EEnemyState::Idle;
+    EBoss2State mState = EBoss2State::Idle;
 
-    UPROPERTY()
-    class UStaticMesh* WhiteSphereMesh;
     UPROPERTY()
     class UStaticMesh* ChargingPathStaticMesh;
     UPROPERTY()

@@ -21,26 +21,26 @@ public:
     // Called every frame
     virtual void Tick(float DeltaTime) override;
 
-    // �浹ü ������Ʈ
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UFUNCTION()
+    void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
     class USphereComponent* CollisionComponent;
 
-    // ���׿� �ܰ� ������Ʈ
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    class UStaticMeshComponent* MeshComponent;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+    class UParticleSystemComponent* ParticleSystemComponent;
 
-    // ������Ʈ ������ ������Ʈ
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
     class UProjectileMovementComponent* ProjectileMovementComponent;
 
-    // MeshComponent�� ��ȯ�ϴ� �Լ�
-    UStaticMeshComponent* GetMeshComponent() const;
-
-    // ��ǥ ��ġ
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Target")
     FVector TargetLocation;
 
 private:
-    UFUNCTION()
-    void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+    void HandleCollisionWithTempMan(AActor* OtherActor);
+
+    // 템프맨과의 거리를 계산하여 충돌 처리
+    void CheckProximityToTempMan();
+
+    float ProximityThreshold; // 템프맨과의 거리 임계값
 };

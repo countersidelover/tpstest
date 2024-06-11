@@ -1,12 +1,12 @@
-#include "MeteorBomb.h"
+#include "ElectricShock.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 #include "Particles/ParticleSystemComponent.h"
-#include "GameFramework/ProjectileMovementComponent.h"
+#include "UObject/ConstructorHelpers.h"
 #include "TempMan.h"
-#include "Kismet/GameplayStatics.h" // GameplayStatics.h 헤더 파일 추가
+#include "Kismet/GameplayStatics.h"
 
-// Sets default values
-AMeteorBomb::AMeteorBomb()
+AElectricShock::AElectricShock()
 {
     PrimaryActorTick.bCanEverTick = true;
 
@@ -14,7 +14,7 @@ AMeteorBomb::AMeteorBomb()
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
     CollisionComponent->InitSphereRadius(50.0f);
     RootComponent = CollisionComponent;
-    CollisionComponent->OnComponentHit.AddDynamic(this, &AMeteorBomb::OnHit); // 충돌 이벤트 바인딩
+    CollisionComponent->OnComponentHit.AddDynamic(this, &AElectricShock::OnHit); // 충돌 이벤트 바인딩
 
     // 충돌 설정
     CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -31,42 +31,45 @@ AMeteorBomb::AMeteorBomb()
         ParticleSystemComponent->SetTemplate(ParticleAsset.Object);
     }
 
-    // 프로젝트 움직임 컴포넌트 생성 및 설정
+    // 프로젝타일 무브먼트 컴포넌트 생성 및 설정
     ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
     ProjectileMovementComponent->SetUpdatedComponent(CollisionComponent);
-    ProjectileMovementComponent->InitialSpeed = 600.0f;  // 속도 조절
-    ProjectileMovementComponent->MaxSpeed = 600.0f;  // 속도 조절
+    ProjectileMovementComponent->InitialSpeed = ShockSpeed;
+    ProjectileMovementComponent->MaxSpeed = ShockSpeed;
     ProjectileMovementComponent->bRotationFollowsVelocity = true;
     ProjectileMovementComponent->bShouldBounce = false;
-    ProjectileMovementComponent->ProjectileGravityScale = 0.0f; // 중력 영향 없음
+    ProjectileMovementComponent->ProjectileGravityScale = 0.0f; // 중력 비활성화
 
     // 수명 설정
-    InitialLifeSpan = 20.0f; // 20초 후 삭제
-
-    // 거리 임계값 설정 (예: 100.0f)
-    ProximityThreshold = 100.0f;
+    InitialLifeSpan = 15.0f; // 15초 후 삭제
 }
 
-// Called when the game starts or when spawned
-void AMeteorBomb::BeginPlay()
+void AElectricShock::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 목표 위치로 향하는 속도 설정
+    // 타겟 위치로 이동
     FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
-    ProjectileMovementComponent->Velocity = Direction * ProjectileMovementComponent->InitialSpeed;
+    ProjectileMovementComponent->Velocity = Direction * ShockSpeed;
 }
 
-// Called every frame
-void AMeteorBomb::Tick(float DeltaTime)
+void AElectricShock::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    // 템프맨과의 거리 검사
-    CheckProximityToTempMan();
+    // TempMan과의 거리 확인
+    ATempMan* TempMan = Cast<ATempMan>(UGameplayStatics::GetActorOfClass(GetWorld(), ATempMan::StaticClass()));
+    if (TempMan)
+    {
+        float DistanceToTempMan = FVector::Distance(GetActorLocation(), TempMan->GetActorLocation());
+        if (DistanceToTempMan < ProximityThreshold)
+        {
+            HandleCollisionWithTempMan(TempMan);
+        }
+    }
 }
 
-void AMeteorBomb::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+void AElectricShock::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
     if (OtherActor && OtherActor != this && OtherActor != GetOwner())
     {
@@ -77,11 +80,20 @@ void AMeteorBomb::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, U
     }
 }
 
-void AMeteorBomb::HandleCollisionWithTempMan(AActor* OtherActor)
+void AElectricShock::SetTargetLocation(FVector NewTargetLocation)
 {
-    // 특정 처리 (주석 처리 해놓음)
-    // OtherActor->TakeDamage(DamageAmount, DamageEvent, GetInstigatorController(), this);
+    TargetLocation = NewTargetLocation;
 
+    // 타겟 위치로 이동 설정
+    if (ProjectileMovementComponent)
+    {
+        FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
+        ProjectileMovementComponent->Velocity = Direction * ShockSpeed;
+    }
+}
+
+void AElectricShock::HandleCollisionWithTempMan(AActor* OtherActor)
+{
     // 충돌체 컴포넌트를 제거하여 다른 오브젝트와의 충돌을 방지합니다.
     CollisionComponent->DestroyComponent();
     // 파티클 시스템 컴포넌트도 제거할 수 있습니다.
@@ -89,18 +101,4 @@ void AMeteorBomb::HandleCollisionWithTempMan(AActor* OtherActor)
 
     // 마지막으로, 자신을 삭제합니다.
     Destroy();
-}
-
-void AMeteorBomb::CheckProximityToTempMan()
-{
-    // 월드에서 템프맨을 찾습니다.
-    ATempMan* TempMan = Cast<ATempMan>(UGameplayStatics::GetActorOfClass(GetWorld(), ATempMan::StaticClass()));
-    if (TempMan)
-    {
-        float DistanceToTempMan = FVector::Distance(GetActorLocation(), TempMan->GetActorLocation());
-        if (DistanceToTempMan < ProximityThreshold)
-        {
-            HandleCollisionWithTempMan(TempMan);
-        }
-    }
 }

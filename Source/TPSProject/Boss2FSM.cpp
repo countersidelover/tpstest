@@ -1,25 +1,18 @@
-#include "EnemyFSM.h"
-#include "Enemy.h"
+#include "Boss2FSM.h"
+#include "Boss2.h"
 #include <Kismet/GameplayStatics.h>
 #include "TPSProject.h"
 #include <Components/CapsuleComponent.h>
-#include "MeteorBomb.h"
-#include "WhiteSphere.h"
+#include "ElectricShock.h"
 #include "TempMan.h"
-#include "EnemyAnim.h"
+#include "Boss2Anim.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Pillar.h"
 
-UEnemyFSM::UEnemyFSM()
+UBoss2FSM::UBoss2FSM()
 {
     PrimaryComponentTick.bCanEverTick = true;
-
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("StaticMesh'/Engine/BasicShapes/Sphere.Sphere'"));
-    if (SphereMesh.Succeeded())
-    {
-        WhiteSphereMesh = SphereMesh.Object;
-    }
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PathMesh(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
     if (PathMesh.Succeeded())
@@ -34,12 +27,12 @@ UEnemyFSM::UEnemyFSM()
     }
 
     bWhiteSphereExecuted = false;
-    mState = EEnemyState::Idle;
+    mState = EBoss2State::Idle;
     hp = 100; // 적절한 초기화
     isExecutingPattern = false;
 }
 
-void UEnemyFSM::BeginPlay()
+void UBoss2FSM::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -48,8 +41,8 @@ void UEnemyFSM::BeginPlay()
         auto actor = UGameplayStatics::GetActorOfClass(GetWorld(), ATempMan::StaticClass());
         target = Cast<ATempMan>(actor);
     }
-    me = Cast<AEnemy>(GetOwner());
-    anim = Cast<UEnemyAnim>(me->GetMesh()->GetAnimInstance());
+    me = Cast<ABoss2>(GetOwner());
+    anim = Cast<UBoss2Anim>(me->GetMesh()->GetAnimInstance());
     if (me && ChargingPathStaticMesh && ChargingPathMaterial)
     {
         ChargingPathMesh = NewObject<UStaticMeshComponent>(me);
@@ -65,7 +58,7 @@ void UEnemyFSM::BeginPlay()
     }
 }
 
-void UEnemyFSM::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UBoss2FSM::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -75,29 +68,21 @@ void UEnemyFSM::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompon
         return;
     }
 
-    if (!bWhiteSphereExecuted)
-    {
-        WhiteSphereState();
-        bWhiteSphereExecuted = true;
-        mState = EEnemyState::Idle;
-        return;
-    }
-
     if (!isExecutingPattern)
     {
         timeSinceLastMeteor += DeltaTime;
         timeSinceLastCharge += DeltaTime;
 
-        if (mState == EEnemyState::Idle)
+        if (mState == EBoss2State::Idle)
         {
             if (timeSinceLastMeteor >= meteorInterval)
             {
-                mState = EEnemyState::Meteor;
+                mState = EBoss2State::Meteor;
                 timeSinceLastMeteor = 0.0f;
             }
             else if (timeSinceLastCharge >= chargeInterval)
             {
-                mState = EEnemyState::Charge;
+                mState = EBoss2State::Charge;
                 timeSinceLastCharge = 0.0f;
             }
         }
@@ -105,48 +90,43 @@ void UEnemyFSM::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompon
 
     switch (mState)
     {
-    case EEnemyState::Idle:
+    case EBoss2State::Idle:
         IdleState();
         break;
-    case EEnemyState::Move:
+    case EBoss2State::Move:
         MoveState();
         break;
-    case EEnemyState::Attack:
+    case EBoss2State::Attack:
         AttackState();
         break;
-    case EEnemyState::Damage:
+    case EBoss2State::Damage:
         DamageState();
         break;
-    case EEnemyState::Die:
+    case EBoss2State::Die:
         DieState();
         break;
-    case EEnemyState::Meteor:
+    case EBoss2State::Meteor:
         MeteorState();
         break;
-    case EEnemyState::WhiteSphere:
-        WhiteSphereState();
-        break;
-    case EEnemyState::Charge:
+    case EBoss2State::Charge:
         ChargeState(chargeSpeed);
         break;
-    case EEnemyState::Charging:
+    case EBoss2State::Charging:
         // Charging 상태에서는 별도의 로직을 추가하지 않음
         break;
-    case EEnemyState::Groggy:
+    case EBoss2State::Groggy:
         // Groggy 상태에서는 별도의 로직을 추가하지 않음
         break;
     }
 }
 
-void UEnemyFSM::IdleState()
+void UBoss2FSM::IdleState()
 {
     anim->animState = mState;
     currentTime += GetWorld()->DeltaTimeSeconds;
-
- 
 }
 
-void UEnemyFSM::MoveState()
+void UBoss2FSM::MoveState()
 {
     if (target)
     {
@@ -156,12 +136,12 @@ void UEnemyFSM::MoveState()
 
         if (dir.Size() < attackRange)
         {
-            mState = EEnemyState::Attack;
+            mState = EBoss2State::Attack;
         }
     }
 }
 
-void UEnemyFSM::AttackState()
+void UBoss2FSM::AttackState()
 {
     currentTime += GetWorld()->DeltaTimeSeconds;
     if (currentTime > attackDelayTime)
@@ -175,24 +155,24 @@ void UEnemyFSM::AttackState()
         float distance = FVector::Distance(target->GetActorLocation(), me->GetActorLocation());
         if (distance > attackRange)
         {
-            mState = EEnemyState::Move;
+            mState = EBoss2State::Move;
         }
     }
 }
 
-void UEnemyFSM::DamageState()
+void UBoss2FSM::DamageState()
 {
     currentTime += GetWorld()->DeltaTimeSeconds;
     if (currentTime > damageDelayTime)
     {
-        mState = EEnemyState::Idle;
+        mState = EBoss2State::Idle;
         currentTime = 0;
     }
 }
 
-void UEnemyFSM::DieState()
+void UBoss2FSM::DieState()
 {
-    mState = EEnemyState::Die;
+    mState = EBoss2State::Die;
     FVector P0 = me->GetActorLocation();
     FVector vt = FVector::DownVector * dieSpeed * GetWorld()->DeltaTimeSeconds;
     FVector P = P0 + vt;
@@ -204,121 +184,67 @@ void UEnemyFSM::DieState()
     }
 }
 
-void UEnemyFSM::MeteorState()
+void UBoss2FSM::MeteorState()
 {
     if (!isExecutingPattern)  // 이미 패턴이 실행 중인지 확인
     {
-        anim->animState = EEnemyState::Meteor;  // 애니메이션 상태 설정
+        anim->animState = EBoss2State::Meteor;  // 애니메이션 상태 설정
         isExecutingPattern = true;  // 패턴 실행 중으로 설정
 
-        // 일정 시간 대기 후 메테오 생성
-        FTimerHandle MeteorSpawnHandle;
-        GetWorld()->GetTimerManager().SetTimer(MeteorSpawnHandle, [this]()
+        // 일정 시간 대기 후 전기 충격 생성
+        FTimerHandle ElectricShockSpawnHandle;
+        GetWorld()->GetTimerManager().SetTimer(ElectricShockSpawnHandle, [this]()
             {
                 if (target)
                 {
                     for (int i = 0; i < 20; ++i)
                     {
                         FVector targetLocation = target->GetActorLocation();
-                        FVector startLocation = me->GetActorLocation() + FMath::VRand() * 500.0f;
+                        FVector2D offset2D = FMath::RandPointInCircle(500.0f); // 500 단위의 원형 범위 내 랜덤 포인트
+                        FVector offset = FVector(offset2D.X, offset2D.Y, 0); // FVector2D를 FVector로 변환
+                        FVector startLocation = targetLocation + offset + FVector(0, 0, 1000.0f); // 위쪽에서 내려오도록
+
                         FTransform transform;
                         transform.SetLocation(startLocation);
-                        AMeteorBomb* meteor = GetWorld()->SpawnActor<AMeteorBomb>(AMeteorBomb::StaticClass(), transform);
-                        if (meteor)
+                        AElectricShock* electricShock = GetWorld()->SpawnActor<AElectricShock>(AElectricShock::StaticClass(), transform);
+                        if (electricShock)
                         {
-                            meteor->TargetLocation = targetLocation;
-                            FVector Direction = (meteor->TargetLocation - startLocation).GetSafeNormal();
-                            meteor->ProjectileMovementComponent->Velocity = Direction * meteor->ProjectileMovementComponent->InitialSpeed;
+                            electricShock->SetTargetLocation(targetLocation + offset);
                         }
                     }
                 }
 
-                // 메테오 생성 후 상태를 Idle로 변경
-                mState = EEnemyState::Idle;
-                anim->animState = EEnemyState::Idle;  // 애니메이션 상태를 Idle로 변경
+                // 전기 충격 생성 후 상태를 Idle로 변경
+                mState = EBoss2State::Idle;
+                anim->animState = EBoss2State::Idle;  // 애니메이션 상태를 Idle로 변경
                 isExecutingPattern = false;  // 패턴 실행 완료
-            }, 0.5f, false);  // 0.5초 후 메테오 생성
+            }, 0.5f, false);  // 0.5초 후 전기 충격 생성
     }
 }
 
-void UEnemyFSM::WhiteSphereState()
-{
-    LaunchWhiteSphere();
-    mState = EEnemyState::Idle;
-    isExecutingPattern = false;  // 패턴 실행 완료
-}
 
-void UEnemyFSM::ChargeState(float newChargeSpeed)
+void UBoss2FSM::ChargeState(float newChargeSpeed)
 {
     anim->animState = mState;
     ChargeWarning(newChargeSpeed);
 }
 
-void UEnemyFSM::OnDamageProcess()
+void UBoss2FSM::OnDamageProcess()
 {
     hp--;
 
     if (hp > 0)
     {
-        mState = EEnemyState::Damage;
+        mState = EBoss2State::Damage;
     }
     else
     {
-        mState = EEnemyState::Die;
+        mState = EBoss2State::Die;
         me->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
 }
 
-void UEnemyFSM::LaunchMeteors()
-{
-    if (target)
-    {
-        anim->animState = EEnemyState::Meteor;  // 애니메이션 상태 설정
-
-        // 일정 시간 대기 후 메테오 생성
-        FTimerHandle MeteorSpawnHandle;
-        GetWorld()->GetTimerManager().SetTimer(MeteorSpawnHandle, [this]()
-            {
-                if (target)
-                {
-                    for (int i = 0; i < 5; ++i)
-                    {
-                        FVector targetLocation = target->GetActorLocation();
-                        FVector startLocation = me->GetActorLocation() + FMath::VRand() * 300.0f;
-                        FTransform transform;
-                        transform.SetLocation(startLocation);
-                        AMeteorBomb* meteor = GetWorld()->SpawnActor<AMeteorBomb>(AMeteorBomb::StaticClass(), transform);
-                        if (meteor)
-                        {
-                            meteor->TargetLocation = targetLocation;
-                            FVector Direction = (meteor->TargetLocation - startLocation).GetSafeNormal();
-                            meteor->ProjectileMovementComponent->Velocity = Direction * meteor->ProjectileMovementComponent->InitialSpeed;
-                        }
-                    }
-                }
-
-                // 메테오 생성 후 상태를 Idle로 변경
-                mState = EEnemyState::Idle;
-                anim->animState = EEnemyState::Idle;  // 애니메이션 상태를 Idle로 변경
-                isExecutingPattern = false;  // 패턴 실행 완료
-            }, 0.5f, false);  // 0.5초 후 메테오 생성
-    }
-}
-
-void UEnemyFSM::LaunchWhiteSphere()
-{
-    FVector spawnLocation = FVector(-100.0f, 100.0f, 200.0f);
-    FTransform transform;
-    transform.SetLocation(spawnLocation);
-
-    AWhiteSphere* whiteSphere = GetWorld()->SpawnActor<AWhiteSphere>(AWhiteSphere::StaticClass(), transform);
-    if (whiteSphere)
-    {
-        whiteSphere->Initialize(me);
-    }
-}
-
-void UEnemyFSM::ChargeWarning(float newChargeSpeed)
+void UBoss2FSM::ChargeWarning(float newChargeSpeed)
 {
     if (!target || !me)
     {
@@ -345,7 +271,7 @@ void UEnemyFSM::ChargeWarning(float newChargeSpeed)
     GetWorld()->GetTimerManager().SetTimer(UnusedHandle, [this, direction, newChargeSpeed]()
         {
             ChargingPathMesh->SetVisibility(false);
-            mState = EEnemyState::Charging;
+            mState = EBoss2State::Charging;
 
             GetWorld()->GetTimerManager().SetTimer(ChargeTimerHandle, [this, direction, newChargeSpeed]()
                 {
@@ -364,7 +290,7 @@ void UEnemyFSM::ChargeWarning(float newChargeSpeed)
                         UE_LOG(LogTemp, Warning, TEXT("Charged into TempMan!"));
                         GetWorld()->GetTimerManager().ClearTimer(ChargeTimerHandle);
                         me->GetCharacterMovement()->Velocity = FVector::ZeroVector;
-                        mState = EEnemyState::Idle;
+                        mState = EBoss2State::Idle;
                         isExecutingPattern = false;  // 패턴 실행 완료
                     }
                     else if (IsCollidingWithPillar())
@@ -372,7 +298,7 @@ void UEnemyFSM::ChargeWarning(float newChargeSpeed)
                         UE_LOG(LogTemp, Warning, TEXT("Charged into a Pillar!"));
                         GetWorld()->GetTimerManager().ClearTimer(ChargeTimerHandle);
                         me->GetCharacterMovement()->Velocity = FVector::ZeroVector;
-                        mState = EEnemyState::Idle;
+                        mState = EBoss2State::Idle;
                         isExecutingPattern = false;  // 패턴 실행 완료
                     }
                 }, 0.01f, true);
@@ -380,7 +306,7 @@ void UEnemyFSM::ChargeWarning(float newChargeSpeed)
         }, chargePrepareTime, false);
 }
 
-bool UEnemyFSM::IsCollidingWithPillar()
+bool UBoss2FSM::IsCollidingWithPillar()
 {
     if (!me) return false;
 
@@ -399,8 +325,8 @@ bool UEnemyFSM::IsCollidingWithPillar()
     return false;
 }
 
-void UEnemyFSM::EnterGroggyState()
+void UBoss2FSM::EnterGroggyState()
 {
-    mState = EEnemyState::Idle;
+    mState = EBoss2State::Idle;
     UE_LOG(LogTemp, Warning, TEXT("Groggy state ended, entering Idle state."));
 }
